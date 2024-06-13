@@ -103,6 +103,30 @@ func TestTemplateParser(t *testing.T) {
 			},
 		},
 		{
+			name: "template: can have multiline params",
+			input: `templ Multiline(
+	params expense,
+) {
+}`,
+			expected: HTMLTemplate{
+				Expression: Expression{
+					Value: "Multiline(\n\tparams expense,\n)",
+					Range: Range{
+						From: Position{
+							Index: 6,
+							Line:  0,
+							Col:   6,
+						},
+						To: Position{
+							Index: 35,
+							Line:  2,
+							Col:   1,
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "template: containing element",
 			input: `templ Name(p Parameter) {
 <span>{ "span content" }</span>
@@ -126,6 +150,10 @@ func TestTemplateParser(t *testing.T) {
 				Children: []Node{
 					Element{
 						Name: "span",
+						NameRange: Range{
+							From: Position{Index: 27, Line: 1, Col: 1},
+							To:   Position{Index: 31, Line: 1, Col: 5},
+						},
 						Children: []Node{
 							StringExpression{
 								Expression: Expression{
@@ -145,9 +173,57 @@ func TestTemplateParser(t *testing.T) {
 								},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{
-						Value: "\n",
+				},
+			},
+		},
+		{
+			name:  "template: containing element - no spacing",
+			input: `templ Name(p Parameter) { <span>{ "span content" }</span> }`,
+			expected: HTMLTemplate{
+				Expression: Expression{
+					Value: "Name(p Parameter)",
+					Range: Range{
+						From: Position{
+							Index: 6,
+							Line:  0,
+							Col:   6,
+						},
+						To: Position{
+							Index: 23,
+							Line:  0,
+							Col:   23,
+						},
+					},
+				},
+				Children: []Node{
+					Element{
+						Name: "span",
+						NameRange: Range{
+							From: Position{Index: 27, Line: 0, Col: 27},
+							To:   Position{Index: 31, Line: 0, Col: 31},
+						},
+						Children: []Node{
+							StringExpression{
+								Expression: Expression{
+									Value: `"span content"`,
+									Range: Range{
+										From: Position{
+											Index: 34,
+											Line:  0,
+											Col:   34,
+										},
+										To: Position{
+											Index: 48,
+											Line:  0,
+											Col:   48,
+										},
+									},
+								},
+							},
+						},
+						TrailingSpace: SpaceHorizontal,
 					},
 				},
 			},
@@ -181,6 +257,10 @@ func TestTemplateParser(t *testing.T) {
 				Children: []Node{
 					Element{
 						Name: "div",
+						NameRange: Range{
+							From: Position{Index: 27, Line: 1, Col: 1},
+							To:   Position{Index: 30, Line: 1, Col: 4},
+						},
 						Children: []Node{
 							Whitespace{Value: "\n  "},
 							StringExpression{
@@ -199,10 +279,14 @@ func TestTemplateParser(t *testing.T) {
 										},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
-							Whitespace{Value: "\n  "},
 							Element{
 								Name: "span",
+								NameRange: Range{
+									From: Position{Index: 55, Line: 3, Col: 3},
+									To:   Position{Index: 59, Line: 3, Col: 7},
+								},
 								Children: []Node{
 									Whitespace{Value: "\n\t"},
 									StringExpression{
@@ -221,14 +305,16 @@ func TestTemplateParser(t *testing.T) {
 												},
 											},
 										},
+										TrailingSpace: SpaceVertical,
 									},
-									Whitespace{Value: "\n  "},
 								},
+								IndentChildren: true,
+								TrailingSpace:  SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
+						IndentChildren: true,
+						TrailingSpace:  SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 			},
 		},
@@ -279,6 +365,10 @@ func TestTemplateParser(t *testing.T) {
 							Whitespace{Value: "\t\t"},
 							Element{
 								Name: "span",
+								NameRange: Range{
+									From: Position{Index: 42, Line: 2, Col: 3},
+									To:   Position{Index: 46, Line: 2, Col: 7},
+								},
 								Children: []Node{
 									Whitespace{"\n\t\t\t"},
 									StringExpression{
@@ -297,12 +387,11 @@ func TestTemplateParser(t *testing.T) {
 												},
 											},
 										},
+										TrailingSpace: SpaceVertical,
 									},
-									Whitespace{"\n\t\t"},
 								},
-							},
-							Whitespace{
-								Value: "\n\t",
+								IndentChildren: true,
+								TrailingSpace:  SpaceVertical,
 							},
 						},
 					},
@@ -338,20 +427,56 @@ func TestTemplateParser(t *testing.T) {
 					Whitespace{Value: "\t"},
 					Element{
 						Name: "input",
-						Attributes: []Attribute{
-							ConstantAttribute{Name: "type", Value: "text"},
-							ConstantAttribute{Name: "value", Value: "a"},
+						NameRange: Range{
+							From: Position{Index: 28, Line: 1, Col: 2},
+							To:   Position{Index: 33, Line: 1, Col: 7},
 						},
+						Attributes: []Attribute{
+							ConstantAttribute{
+								Name:  "type",
+								Value: "text",
+								NameRange: Range{
+									From: Position{Index: 34, Line: 1, Col: 8},
+									To:   Position{Index: 38, Line: 1, Col: 12},
+								},
+							},
+							ConstantAttribute{
+								Name:  "value",
+								Value: "a",
+								NameRange: Range{
+									From: Position{Index: 46, Line: 1, Col: 20},
+									To:   Position{Index: 51, Line: 1, Col: 25},
+								},
+							},
+						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{Value: "\n\t"},
 					Element{
 						Name: "input",
-						Attributes: []Attribute{
-							ConstantAttribute{Name: "type", Value: "text"},
-							ConstantAttribute{Name: "value", Value: "b"},
+						NameRange: Range{
+							From: Position{Index: 61, Line: 2, Col: 2},
+							To:   Position{Index: 66, Line: 2, Col: 7},
 						},
+						Attributes: []Attribute{
+							ConstantAttribute{
+								Name:  "type",
+								Value: "text",
+								NameRange: Range{
+									From: Position{Index: 67, Line: 2, Col: 8},
+									To:   Position{Index: 71, Line: 2, Col: 12},
+								},
+							},
+							ConstantAttribute{
+								Name:  "value",
+								Value: "b",
+								NameRange: Range{
+									From: Position{Index: 79, Line: 2, Col: 20},
+									To:   Position{Index: 84, Line: 2, Col: 25},
+								},
+							},
+						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 			},
 		},
@@ -421,10 +546,18 @@ func TestTemplateParser(t *testing.T) {
 					},
 					Element{
 						Name: "a",
+						NameRange: Range{
+							From: Position{Index: 14, Line: 1, Col: 2},
+							To:   Position{Index: 15, Line: 1, Col: 3},
+						},
 						Attributes: []Attribute{
 							ConstantAttribute{
 								Name:  "href",
 								Value: "/",
+								NameRange: Range{
+									From: Position{Index: 16, Line: 1, Col: 4},
+									To:   Position{Index: 20, Line: 1, Col: 8},
+								},
 							},
 						},
 						Children: []Node{
@@ -449,8 +582,153 @@ func TestTemplateParser(t *testing.T) {
 							Whitespace{Value: " "},
 							Text{Value: "Home"},
 						},
+						TrailingSpace: SpaceVertical,
 					},
+				},
+			},
+		},
+		{
+			name: "template: can contain single line comments",
+			input: `templ x() {
+	// Comment
+}`,
+			expected: HTMLTemplate{
+				Expression: Expression{
+					Value: "x()",
+					Range: Range{
+						From: Position{Index: 6, Line: 0, Col: 6},
+						To:   Position{Index: 9, Line: 0, Col: 9},
+					},
+				},
+				Children: []Node{
+					Whitespace{Value: "\t"},
+					GoComment{Contents: " Comment", Multiline: false},
+				},
+			},
+		},
+		{
+			name: "template: can contain block comments on the same line",
+			input: `templ x() {
+	/* Comment */
+}`,
+			expected: HTMLTemplate{
+				Expression: Expression{
+					Value: "x()",
+					Range: Range{
+						From: Position{Index: 6, Line: 0, Col: 6},
+						To:   Position{Index: 9, Line: 0, Col: 9},
+					},
+				},
+				Children: []Node{
+					Whitespace{Value: "\t"},
+					GoComment{Contents: " Comment ", Multiline: true},
 					Whitespace{Value: "\n"},
+				},
+			},
+		},
+		{
+			name: "template: can contain block comments on multiple lines",
+			input: `templ x() {
+	/* Line 1
+		 Line 2
+	*/
+}`,
+			expected: HTMLTemplate{
+				Expression: Expression{
+					Value: "x()",
+					Range: Range{
+						From: Position{Index: 6, Line: 0, Col: 6},
+						To:   Position{Index: 9, Line: 0, Col: 9},
+					},
+				},
+				Children: []Node{
+					Whitespace{Value: "\t"},
+					GoComment{Contents: " Line 1\n\t\t Line 2\n\t", Multiline: true},
+					Whitespace{Value: "\n"},
+				},
+			},
+		},
+		{
+			name: "template: can contain HTML comments",
+			input: `templ x() {
+	<!-- Single line -->
+	<!-- 
+		Multiline
+	-->
+}`,
+			expected: HTMLTemplate{
+				Expression: Expression{
+					Value: "x()",
+					Range: Range{
+						From: Position{Index: 6, Line: 0, Col: 6},
+						To:   Position{Index: 9, Line: 0, Col: 9},
+					},
+				},
+				Children: []Node{
+					Whitespace{Value: "\t"},
+					HTMLComment{Contents: " Single line "},
+					Whitespace{Value: "\n\t"},
+					HTMLComment{Contents: " \n\t\tMultiline\n\t"},
+					Whitespace{Value: "\n"},
+				},
+			},
+		},
+		{
+			name: "template: containing spread attributes and children expression",
+			input: `templ Name(children templ.Attributes) {
+		<span { children... }>
+			{ children... }
+		</span>
+}`,
+			expected: HTMLTemplate{
+				Expression: Expression{
+					Value: "Name(children templ.Attributes)",
+					Range: Range{
+						From: Position{
+							Index: 6,
+							Line:  0,
+							Col:   6,
+						},
+						To: Position{
+							Index: 37,
+							Line:  0,
+							Col:   37,
+						},
+					},
+				},
+				Children: []Node{
+					Whitespace{Value: "\t\t"},
+					Element{
+						Name: "span",
+						NameRange: Range{
+							From: Position{Index: 43, Line: 1, Col: 3},
+							To:   Position{Index: 47, Line: 1, Col: 7},
+						},
+						Attributes: []Attribute{SpreadAttributes{
+							Expression{
+								Value: "children",
+								Range: Range{
+									From: Position{
+										Index: 50,
+										Line:  1,
+										Col:   10,
+									},
+									To: Position{
+										Index: 58,
+										Line:  1,
+										Col:   18,
+									},
+								},
+							},
+						}},
+						Children: []Node{
+							Whitespace{"\n\t\t\t"},
+							ChildrenExpression{},
+							Whitespace{Value: "\n\t\t"},
+						},
+						IndentChildren: true,
+						TrailingSpace:  SpaceVertical,
+					},
 				},
 			},
 		},

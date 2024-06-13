@@ -8,7 +8,7 @@ import (
 )
 
 func TestIfExpression(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name     string
 		input    string
 		expected IfExpression
@@ -40,6 +40,11 @@ func TestIfExpression(t *testing.T) {
 				Then: []Node{
 					Element{
 						Name: "span",
+						NameRange: Range{
+							From: Position{Index: 13, Line: 1, Col: 1},
+							To:   Position{Index: 17, Line: 1, Col: 5},
+						},
+
 						Children: []Node{
 							Whitespace{Value: "\n  "},
 							StringExpression{
@@ -58,11 +63,12 @@ func TestIfExpression(t *testing.T) {
 										},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
+						IndentChildren: true,
+						TrailingSpace:  SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 			},
 		},
@@ -107,8 +113,8 @@ func TestIfExpression(t *testing.T) {
 								},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 				Else: []Node{
 					StringExpression{
@@ -127,8 +133,8 @@ func TestIfExpression(t *testing.T) {
 								},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 			},
 		},
@@ -156,8 +162,7 @@ func TestIfExpression(t *testing.T) {
 				},
 				Then: []Node{
 					Whitespace{Value: "  "},
-					Text{Value: "text"},
-					Whitespace{Value: "\n"},
+					Text{Value: "text", TrailingSpace: SpaceVertical},
 				},
 			},
 		},
@@ -188,6 +193,11 @@ func TestIfExpression(t *testing.T) {
 				Then: []Node{
 					Element{
 						Name: "span",
+						NameRange: Range{
+							From: Position{Index: 13, Line: 1, Col: 1},
+							To:   Position{Index: 17, Line: 1, Col: 5},
+						},
+
 						Children: []Node{
 							Whitespace{Value: "\n  "},
 							StringExpression{
@@ -206,11 +216,12 @@ func TestIfExpression(t *testing.T) {
 										},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
+						IndentChildren: true,
+						TrailingSpace:  SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 			},
 		},
@@ -255,8 +266,8 @@ func TestIfExpression(t *testing.T) {
 								},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 				Else: []Node{
 					StringExpression{
@@ -275,8 +286,8 @@ func TestIfExpression(t *testing.T) {
 								},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 			},
 		},
@@ -325,6 +336,11 @@ func TestIfExpression(t *testing.T) {
 							Whitespace{Value: "\t\t\t\t\t\t"},
 							Element{
 								Name: "div",
+								NameRange: Range{
+									From: Position{Index: 30, Line: 2, Col: 7},
+									To:   Position{Index: 33, Line: 2, Col: 10},
+								},
+
 								Children: []Node{
 									StringExpression{
 										Expression: Expression{
@@ -344,8 +360,8 @@ func TestIfExpression(t *testing.T) {
 										},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
-							Whitespace{Value: "\n\t\t\t\t\t"},
 						},
 					},
 					Whitespace{Value: "\n\t\t\t\t"},
@@ -377,6 +393,7 @@ func TestIfExpression(t *testing.T) {
 								To:   Position{Index: 15, Line: 1, Col: 6},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
 				},
 				ElseIfs: []ElseIfExpression{
@@ -398,8 +415,8 @@ func TestIfExpression(t *testing.T) {
 										To:   Position{Index: 40, Line: 3, Col: 6},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
 					},
 				},
@@ -432,6 +449,7 @@ func TestIfExpression(t *testing.T) {
 								To:   Position{Index: 15, Line: 1, Col: 6},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
 				},
 				ElseIfs: []ElseIfExpression{
@@ -453,6 +471,7 @@ func TestIfExpression(t *testing.T) {
 										To:   Position{Index: 40, Line: 3, Col: 6},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
 						},
 					},
@@ -474,8 +493,8 @@ func TestIfExpression(t *testing.T) {
 										To:   Position{Index: 65, Line: 5, Col: 6},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
 					},
 				},
@@ -510,6 +529,7 @@ func TestIfExpression(t *testing.T) {
 								To:   Position{Index: 15, Line: 1, Col: 6},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
 				},
 				ElseIfs: []ElseIfExpression{
@@ -531,6 +551,7 @@ func TestIfExpression(t *testing.T) {
 										To:   Position{Index: 40, Line: 3, Col: 6},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
 						},
 					},
@@ -552,8 +573,8 @@ func TestIfExpression(t *testing.T) {
 										To:   Position{Index: 65, Line: 5, Col: 6},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
 					},
 				},
@@ -566,8 +587,8 @@ func TestIfExpression(t *testing.T) {
 								To:   Position{Index: 83, Line: 7, Col: 6},
 							},
 						},
+						TrailingSpace: SpaceVertical,
 					},
-					Whitespace{Value: "\n"},
 				},
 			},
 		},
@@ -588,4 +609,24 @@ func TestIfExpression(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIncompleteIf(t *testing.T) {
+	t.Run("no opening brace", func(t *testing.T) {
+		input := parse.NewInput(`if a tree falls in the woods`)
+		_, _, err := ifExpression.Parse(input)
+		if err.Error() != "if: unterminated (missing closing '{\\n') - https://templ.guide/syntax-and-usage/statements#incomplete-statements: line 0, col 0" {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("capitalised If", func(t *testing.T) {
+		input := parse.NewInput(`If a tree falls in the woods`)
+		_, ok, err := ifExpression.Parse(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok {
+			t.Fatal("expected a non match")
+		}
+	})
 }

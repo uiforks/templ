@@ -56,6 +56,33 @@ func TestTemplElementExpressionParser(t *testing.T) {
 			},
 		},
 		{
+			name: "templelement: simple multiline call",
+			input: `@Other_Component(
+				p.Test,
+				"something" + "else",
+			)` + "\n",
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `Other_Component(
+				p.Test,
+				"something" + "else",
+			)`,
+					Range: Range{
+						From: Position{
+							Index: 1,
+							Line:  0,
+							Col:   1,
+						},
+						To: Position{
+							Index: 60,
+							Line:  3,
+							Col:   4,
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "templelement: simple, block with text",
 			input: `@Other(p.Test) {
 	some words
@@ -78,8 +105,9 @@ func TestTemplElementExpressionParser(t *testing.T) {
 				},
 				Children: []Node{
 					Whitespace{Value: "\n\t"},
-					Text{Value: "some words"},
-					Whitespace{Value: "\n"},
+					Text{Value: "some words",
+						TrailingSpace: SpaceVertical,
+					},
 				},
 			},
 		},
@@ -106,10 +134,23 @@ func TestTemplElementExpressionParser(t *testing.T) {
 				},
 				Children: []Node{
 					Whitespace{Value: "\n\t\t\t"},
-					Element{Name: "a", Attributes: []Attribute{
-						ConstantAttribute{"href", "someurl"},
-					}},
-					Whitespace{Value: "\n\t\t"},
+					Element{Name: "a",
+						NameRange: Range{
+							From: Position{Index: 20, Line: 1, Col: 4},
+							To:   Position{Index: 21, Line: 1, Col: 5},
+						},
+						Attributes: []Attribute{
+							ConstantAttribute{
+								Name:  "href",
+								Value: "someurl",
+								NameRange: Range{
+									From: Position{Index: 22, Line: 1, Col: 6},
+									To:   Position{Index: 26, Line: 1, Col: 10},
+								},
+							},
+						},
+						TrailingSpace: SpaceVertical,
+					},
 				},
 			},
 		},
@@ -209,6 +250,172 @@ func TestTemplElementExpressionParser(t *testing.T) {
 							Line:  0,
 							Col:   31,
 						},
+					},
+				},
+			},
+		},
+		{
+			name:  "templelement: supports a slice of functions",
+			input: `@templates[0]()`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `templates[0]()`,
+					Range: Range{
+						From: Position{
+							Index: 1,
+							Line:  0,
+							Col:   1,
+						},
+						To: Position{
+							Index: 15,
+							Line:  0,
+							Col:   15,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "templelement: supports a map of functions",
+			input: `@templates["key"]()`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `templates["key"]()`,
+					Range: Range{
+						From: Position{
+							Index: 1,
+							Line:  0,
+							Col:   1,
+						},
+						To: Position{
+							Index: 19,
+							Line:  0,
+							Col:   19,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "templelement: supports a slice of structs/interfaces",
+			input: `@templates[0].CreateTemplate()`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `templates[0].CreateTemplate()`,
+					Range: Range{
+						From: Position{
+							Index: 1,
+							Line:  0,
+							Col:   1,
+						},
+						To: Position{
+							Index: 30,
+							Line:  0,
+							Col:   30,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "templelement: supports a slice of structs/interfaces",
+			input: `@templates[0].CreateTemplate()`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `templates[0].CreateTemplate()`,
+					Range: Range{
+						From: Position{
+							Index: 1,
+							Line:  0,
+							Col:   1,
+						},
+						To: Position{
+							Index: 30,
+							Line:  0,
+							Col:   30,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "templelement: bare variables are read until the end of the token",
+			input: `@template</div>`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `template`,
+					Range: Range{
+						From: Position{
+							Index: 1,
+							Line:  0,
+							Col:   1,
+						},
+						To: Position{
+							Index: 9,
+							Line:  0,
+							Col:   9,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "templelement: struct literal method calls are supported",
+			input: `@layout.DefaultLayout{}.Compile()<div>`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `layout.DefaultLayout{}.Compile()`,
+					Range: Range{
+						From: Position{1, 0, 1},
+						To:   Position{33, 0, 33},
+					},
+				},
+			},
+		},
+		{
+			name: "templelement: struct literal method calls are supported, with child elements",
+			input: `@layout.DefaultLayout{}.Compile() {
+  <div>hello</div>
+}`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `layout.DefaultLayout{}.Compile()`,
+					Range: Range{
+						From: Position{1, 0, 1},
+						To:   Position{33, 0, 33},
+					},
+				},
+				Children: []Node{
+					Whitespace{Value: "\n  "},
+					Element{
+						Name: "div",
+						NameRange: Range{
+							From: Position{Index: 39, Line: 1, Col: 3},
+							To:   Position{Index: 42, Line: 1, Col: 6},
+						},
+						Children: []Node{
+							Text{Value: "hello"},
+						},
+						TrailingSpace: SpaceVertical,
+					},
+				},
+			},
+		},
+		{
+			name: "templelement: arguments can receive a slice of complex types",
+			input: `@tabs([]*TabData{
+  {Name: "A"},
+  {Name: "B"},
+})`,
+			expected: TemplElementExpression{
+				Expression: Expression{
+					Value: `tabs([]*TabData{
+  {Name: "A"},
+  {Name: "B"},
+})`,
+					Range: Range{
+						From: Position{1, 0, 1},
+						To:   Position{50, 3, 2},
 					},
 				},
 			},

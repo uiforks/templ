@@ -3,6 +3,7 @@ package lspcmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,7 +29,7 @@ type Arguments struct {
 	HTTPDebug string
 }
 
-func Run(args Arguments) error {
+func Run(stdin io.Reader, stdout, stderr io.Writer, args Arguments) (err error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	signalChan := make(chan os.Signal, 1)
@@ -51,10 +52,6 @@ func Run(args Arguments) error {
 		<-signalChan // Second signal, hard exit.
 		os.Exit(2)
 	}()
-	return run(ctx, args)
-}
-
-func run(ctx context.Context, args Arguments) (err error) {
 	log := zap.NewNop()
 	if args.Log != "" {
 		cfg := zap.NewProductionConfig()
@@ -64,13 +61,18 @@ func run(ctx context.Context, args Arguments) (err error) {
 		}
 		log, err = cfg.Build()
 		if err != nil {
-			_, _ = fmt.Printf("failed to create logger: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "failed to create logger: %v\n", err)
 			os.Exit(1)
 		}
 	}
 	defer func() {
 		_ = log.Sync()
 	}()
+	templStream := jsonrpc2.NewStream(newStdRwc(log, "templStream", stdout, stdin))
+	return run(ctx, log, templStream, args)
+}
+
+func run(ctx context.Context, log *zap.Logger, templStream jsonrpc2.Stream, args Arguments) (err error) {
 	log.Info("lsp: starting up...")
 	defer func() {
 		if r := recover(); r != nil {
@@ -89,19 +91,19 @@ func run(ctx context.Context, args Arguments) (err error) {
 	}
 
 	cache := proxy.NewSourceMapCache()
+	diagnosticCache := proxy.NewDiagnosticCache()
 
-	log.Info("creating client")
-	clientProxy, clientInit := proxy.NewClient(log, cache)
+	log.Info("creating gopls client")
+	clientProxy, clientInit := proxy.NewClient(log, cache, diagnosticCache)
 	_, goplsConn, goplsServer := protocol.NewClient(context.Background(), clientProxy, jsonrpc2.NewStream(rwc), log)
 	defer goplsConn.Close()
 
 	log.Info("creating proxy")
 	// Create the proxy to sit between.
-	serverProxy, serverInit := proxy.NewServer(log, goplsServer, cache)
+	serverProxy, serverInit := proxy.NewServer(log, goplsServer, cache, diagnosticCache)
 
 	// Create templ server.
 	log.Info("creating templ server")
-	templStream := jsonrpc2.NewStream(stdrwc{log: log})
 	_, templConn, templClient := protocol.NewServer(context.Background(), serverProxy, templStream, log)
 	defer templConn.Close()
 

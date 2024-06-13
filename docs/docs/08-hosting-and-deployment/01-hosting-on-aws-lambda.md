@@ -2,7 +2,7 @@
 
 AWS Lambda is a great way to host templ applications.
 
-The example at https://github.com/a-h/templ/tree/main/examples/counter includes example AWS CDK code for deploying onto AWS Lambda.
+The example at https://github.com/a-h/templ/tree/main/examples/counter includes AWS CDK code for deploying onto AWS Lambda.
 
 See the `/cdk` directory for the details.
 
@@ -28,7 +28,7 @@ import (
 
 func main() {
 	// Create handlers.
-	log := slog.New(slog.NewJSONHandler(os.Stdout))
+	log := slog.New(slog.NewJSONHandler(os.Stderr))
 	s, err := db.NewCountStore(os.Getenv("TABLE_NAME"), os.Getenv("AWS_REGION"))
 	if err != nil {
 		log.Error("failed to create store", slog.Any("error", err))

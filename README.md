@@ -1,39 +1,53 @@
 ![templ](https://github.com/a-h/templ/raw/main/templ.png)
 
-## A HTML templating language for Go that has great developer tooling.
+## An HTML templating language for Go that has great developer tooling.
 
-![templ](https://user-images.githubusercontent.com/1029947/171962961-38aec64d-eac3-4166-8cb6-e7337c907bae.gif)
+![templ](ide-demo.gif)
+
 
 ## Documentation
 
 See user documentation at https://templ.guide
 
+<p align="center">
+<a href="https://pkg.go.dev/github.com/a-h/templ"><img src="https://pkg.go.dev/badge/github.com/a-h/templ.svg" alt="Go Reference" /></a>
+<a href="https://xcfile.dev"><img src="https://xcfile.dev/badge.svg" alt="xc compatible" /></a>
+<a href="https://raw.githack.com/wiki/a-h/templ/coverage.html"><img src="https://github.com/a-h/templ/wiki/coverage.svg" alt="Go Coverage" /></a>
+<a href="https://goreportcard.com/report/github.com/a-h/templ"><img src="https://goreportcard.com/badge/github.com/a-h/templ" alt="Go Report Card" /></a<
+</p>
+
 ## Tasks
-
-### nix-develop
-
-Run a Nix shell that contains everything required to build templ.
-
-```sh
-nix develop --impure
-```
 
 ### build
 
 Build a local version.
 
 ```sh
+go run ./get-version > .version
 cd cmd/templ
 go build
 ```
 
-### install-snapshot
-
-Build and install to ~/bin
+### nix-update-gomod2nix
 
 ```sh
-rm cmd/templ/lspcmd/*.txt || true
-cd cmd/templ && go build -o ~/bin/templ
+gomod2nix
+```
+
+### install-snapshot
+
+Build and install current version.
+
+```sh
+# Remove templ from the non-standard ~/bin/templ path
+# that this command previously used.
+rm -f ~/bin/templ
+# Clear LSP logs.
+rm -f cmd/templ/lspcmd/*.txt
+# Update version.
+go run ./get-version > .version
+# Install to $GOPATH/bin or $HOME/go/bin
+cd cmd/templ && go install
 ```
 
 ### build-snapshot
@@ -41,7 +55,7 @@ cd cmd/templ && go build -o ~/bin/templ
 Use goreleaser to build the command line binary using goreleaser.
 
 ```sh
-goreleaser build --snapshot --rm-dist
+goreleaser build --snapshot --clean
 ```
 
 ### generate
@@ -49,7 +63,7 @@ goreleaser build --snapshot --rm-dist
 Run templ generate using local version.
 
 ```sh
-go run ./cmd/templ generate
+go run ./cmd/templ generate -include-version=false
 ```
 
 ### test
@@ -57,7 +71,19 @@ go run ./cmd/templ generate
 Run Go tests.
 
 ```sh
-go run ./cmd/templ generate && go test ./...
+go run ./get-version > .version
+go run ./cmd/templ generate -include-version=false
+go test ./...
+```
+
+### test-short
+
+Run Go tests.
+
+```sh
+go run ./get-version > .version
+go run ./cmd/templ generate -include-version=false
+go test ./... -short
 ```
 
 ### test-cover
@@ -66,34 +92,61 @@ Run Go tests.
 
 ```sh
 # Create test profile directories.
+mkdir -p coverage/fmt
 mkdir -p coverage/generate
+mkdir -p coverage/version
 mkdir -p coverage/unit
 # Build the test binary.
 go build -cover -o ./coverage/templ-cover ./cmd/templ
 # Run the covered generate command.
-GOCOVERDIR=coverage/generate ./coverage/templ-cover generate
+GOCOVERDIR=coverage/fmt ./coverage/templ-cover fmt .
+GOCOVERDIR=coverage/generate ./coverage/templ-cover generate -include-version=false
+GOCOVERDIR=coverage/version ./coverage/templ-cover version
 # Run the unit tests.
-go test -cover ./... -args -test.gocoverdir="$PWD/coverage/unit"
+go test -cover ./... -coverpkg ./... -args -test.gocoverdir="$PWD/coverage/unit"
 # Display the combined percentage.
-go tool covdata percent -i=./coverage/generate,./coverage/unit
+go tool covdata percent -i=./coverage/fmt,./coverage/generate,./coverage/version,./coverage/unit
 # Generate a text coverage profile for tooling to use.
-go tool covdata textfmt -i=./coverage/generate,./coverage/unit -o coverage.out
+go tool covdata textfmt -i=./coverage/fmt,./coverage/generate,./coverage/version,./coverage/unit -o coverage.out
+# Print total
+go tool cover -func coverage.out | grep total
+```
+
+### test-cover-watch
+
+```sh
+gotestsum --watch -- -coverprofile=coverage.out
+```
+
+### benchmark
+
+Run benchmarks.
+
+```sh
+go run ./cmd/templ generate -include-version=false && go test ./... -bench=. -benchmem
+```
+
+### fmt
+
+Format all Go and templ code.
+
+```sh
+gofmt -s -w .
+go run ./cmd/templ fmt .
 ```
 
 ### lint
 
 ```sh
-docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint:v1.52.2 golangci-lint run -v
+golangci-lint run --verbose
 ```
 
-### release
+### push-release-tag
 
-Create production build with goreleaser.
+Push a semantic version number to Github to trigger the release process.
 
 ```sh
-if [ "${GITHUB_TOKEN}" == "" ]; then echo "No github token, run:"; echo "export GITHUB_TOKEN=`pass github.com/goreleaser_access_token`"; exit 1; fi
 ./push-tag.sh
-goreleaser --clean
 ```
 
 ### docs-run
@@ -102,7 +155,7 @@ Run the development server.
 
 Directory: docs
 
-```
+```sh
 npm run start
 ```
 
@@ -112,23 +165,7 @@ Build production docs site.
 
 Directory: docs
 
-```
+```sh
 npm run build
-```
-
-### docker-build
-
-Build a Docker container with a full development environment and Neovim setup for testing the LSP.
-
-```
-docker build -t templ:latest .
-```
-
-### docker-run
-
-Run a Docker development container in the current directory.
-
-```
-docker run -p 7474:7474 -v `pwd`:/templ -it --rm templ:latest
 ```
 

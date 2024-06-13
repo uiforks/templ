@@ -14,6 +14,68 @@ templ component() {
 <p data-testid="paragraph">Text</p>
 ```
 
+## String expression attributes
+
+Element attributes can be set to Go strings.
+
+```templ
+templ component(testID string) {
+  <p data-testid={ testID }>Text</p>
+}
+
+templ page() {
+  @component("testid-123")
+}
+```
+
+Rendering the `page` component results in:
+
+```html title="Output"
+<p data-testid="testid-123">Text</p>
+```
+
+:::note
+String values are automatically HTML attribute encoded. This is a security measure, but may make the values (especially JSON appear) look strange to you, since some characters may be converted into HTML entities. However, it is correct HTML and won't affect the behavior. 
+:::
+
+It's also possible to use function calls in string attribute expressions.
+
+Here's a function that returns a string based on a boolean input.
+
+```go
+func testID(isTrue bool) string {
+    if isTrue {
+        return "testid-123"
+    }
+    return "testid-456"
+}
+```
+
+```templ
+templ component() {
+  <p data-testid={ testID(true) }>Text</p>
+}
+```
+
+The result:
+
+```html title="Output"
+<p data-testid="testid-123">Text</p>
+```
+
+Functions in string attribute expressions can also return errors.
+
+```go
+func testID(isTrue bool) (string, error) {
+    if isTrue {
+        return "testid-123", nil
+    }
+    return "", fmt.Errorf("isTrue is false")
+}
+```
+
+If the function returns an error, the `Render` method will return the error along with its location.
+
 ## Boolean attributes
 
 Boolean attributes (see https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#boolean-attributes) where the presence of an attribute name without a value means true, and the attribute name not being present means false are supported.
@@ -51,7 +113,7 @@ Use an `if` statement within a templ element to optionally add attributes to ele
 
 ```templ
 templ component() {
-  <hr style="padding: 10px" 
+  <hr style="padding: 10px"
     if true {
       class="itIsTrue"
     }
@@ -61,6 +123,37 @@ templ component() {
 
 ```html title="Output"
 <hr style="padding: 10px" class="itIsTrue" />
+```
+
+## Spread attributes
+
+Use the `{ attrMap... }` syntax in the open tag of an element to append a dynamic map of attributes to the element's attributes.
+
+It's possible to spread any variable of type `templ.Attributes`. `templ.Attributes` is a `map[string]any` type definition.
+
+* If the value is a `string`, the attribute is added with the string value, e.g. `<div name="value">`.
+* If the value is a `bool`, the attribute is added as a boolean attribute if the value is true, e.g. `<div name>`.
+* If the value is a `templ.KeyValue[string, bool]`, the attribute is added if the boolean is true, e.g. `<div name="value">`.
+* If the value is a `templ.KeyValue[bool, bool]`, the attribute is added if both boolean values are true, as `<div name>`.
+
+```templ
+templ component(shouldBeUsed bool, attrs templ.Attributes) {
+  <p { attrs... }></p>
+  <hr
+    if shouldBeUsed {
+      { attrs... }
+    }
+  />
+}
+
+templ usage() {
+  @component(false, templ.Attributes{"data-testid": "paragraph"}) 
+}
+```
+
+```html title="Output"
+<p data-testid="paragraph">Text</p>
+<hr>
 ```
 
 ## URL attributes
@@ -74,6 +167,18 @@ The `templ.URL` function sanitizes input URLs and checks that the protocol is `h
 ```templ
 templ component(p Person) {
   <a href={ templ.URL(p.URL) }>{ strings.ToUpper(p.Name) }</a>
+}
+```
+
+The `templ.URL` function only supports standard HTML elements and attributes (`<a href=""` and `<form action=""`).
+
+For use on non-standard HTML elements (e.g. HTMX's `hx-*` attributes), convert the `templ.URL` to a `string` after sanitization.
+
+```templ
+templ component(contact model.Contact) {
+  <div hx-get={ string(templ.URL(fmt.Sprintf("/contacts/%s/email", contact.ID)))}>
+    { contact.Name }
+  </div>
 }
 ```
 
@@ -116,4 +221,22 @@ templ Button(text string) {
 
 ## CSS attributes
 
-CSS handling is discussed in detail at [CSS style management](css-style-management).
+CSS handling is discussed in detail in [CSS style management](/syntax-and-usage/css-style-management).
+
+## JSON attributes
+
+To set an attribute's value to a JSON string (e.g. for HTMX's [hx-vals](https://htmx.org/attributes/hx-vals) or Alpine's [x-data](https://alpinejs.dev/directives/data)), serialize the value to a string using a function.
+
+```go
+func countriesJSON() string {
+	countries := []string{"Czech Republic", "Slovakia", "United Kingdom", "Germany", "Austria", "Slovenia"}
+	bytes, _ := json.Marshal(countries)
+	return string(bytes)
+}
+```
+
+```templ
+templ SearchBox() {
+	<search-webcomponent suggestions={ countriesJSON() } />
+}
+```

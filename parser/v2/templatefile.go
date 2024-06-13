@@ -60,16 +60,18 @@ func NewTemplateFileParser(pkg string) TemplateFileParser {
 	}
 }
 
-var ErrLegacyFileFormat = errors.New("Legacy file format - run templ migrate")
-var ErrTemplateNotFound = errors.New("Template not found")
+var ErrLegacyFileFormat = errors.New("legacy file format - run templ migrate")
+var ErrTemplateNotFound = errors.New("template not found")
 
 type TemplateFileParser struct {
 	DefaultPackage string
 }
 
+var legacyPackageParser = parse.String("{% package")
+
 func (p TemplateFileParser) Parse(pi *parse.Input) (tf TemplateFile, ok bool, err error) {
 	// If we're parsing a legacy file, complain that migration needs to happen.
-	_, ok, err = parse.String("{% package").Parse(pi)
+	_, ok, err = legacyPackageParser.Parse(pi)
 	if err != nil {
 		return
 	}
@@ -77,20 +79,33 @@ func (p TemplateFileParser) Parse(pi *parse.Input) (tf TemplateFile, ok bool, er
 		return tf, false, ErrLegacyFileFormat
 	}
 
-	// Required package.
-	// package name
-	from := pi.Position()
-	tf.Package, ok, err = pkg.Parse(pi)
-	if err != nil {
-		return
-	}
-	if !ok {
-		tf.Package = Package{
-			Expression: NewExpression("package "+p.DefaultPackage, from, pi.Position()),
+	// Read until the package.
+	for {
+		// Package.
+		// package name
+		from := pi.Position()
+		tf.Package, ok, err = pkg.Parse(pi)
+		if err != nil {
+			return
 		}
+		if ok {
+			break
+		}
+
+		var line string
+		line, ok, err = stringUntilNewLine.Parse(pi)
+		if err != nil {
+			return
+		}
+		if !ok {
+			break
+		}
+		var newLine string
+		newLine, _, _ = parse.NewLine.Parse(pi)
+		tf.Header = append(tf.Header, TemplateFileGoExpression{Expression: NewExpression(line+newLine, from, pi.Position()), BeforePackage: true})
 	}
 
-	// Optional whitespace.
+	// Strip any whitespace between the template declaration and the first template.
 	_, _, _ = parse.OptionalWhitespace.Parse(pi)
 
 outer:
@@ -133,24 +148,24 @@ outer:
 		}
 
 		// Anything that isn't template content is Go code.
-		var code strings.Builder
+		code := new(strings.Builder)
 		from := pi.Position()
 	inner:
 		for {
 			// Check to see if this line isn't Go code.
 			last := pi.Index()
 			var l string
-			if l, ok, err = parse.StringUntil(parse.Or(parse.NewLine, parse.EOF[string]())).Parse(pi); err != nil {
+			if l, ok, err = stringUntilNewLineOrEOF.Parse(pi); err != nil {
 				return
 			}
 			hasTemplatePrefix := strings.HasPrefix(l, "templ ") || strings.HasPrefix(l, "css ") || strings.HasPrefix(l, "script ")
-			if hasTemplatePrefix && strings.HasSuffix(l, "{") {
+			if hasTemplatePrefix && strings.Contains(l, "(") {
 				// Unread the line.
 				pi.Seek(last)
 				// Take the code so far.
 				if code.Len() > 0 {
 					expr := NewExpression(strings.TrimSpace(code.String()), from, pi.Position())
-					tf.Nodes = append(tf.Nodes, GoExpression{Expression: expr})
+					tf.Nodes = append(tf.Nodes, TemplateFileGoExpression{Expression: expr})
 				}
 				// Carry on parsing.
 				break inner
@@ -166,7 +181,7 @@ outer:
 			if _, isEOF, _ := parse.EOF[string]().Parse(pi); isEOF {
 				if code.Len() > 0 {
 					expr := NewExpression(strings.TrimSpace(code.String()), from, pi.Position())
-					tf.Nodes = append(tf.Nodes, GoExpression{Expression: expr})
+					tf.Nodes = append(tf.Nodes, TemplateFileGoExpression{Expression: expr})
 				}
 				// Stop parsing.
 				break outer

@@ -8,7 +8,7 @@ import (
 )
 
 func TestSwitchExpressionParser(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name     string
 		input    string
 		expected SwitchExpression
@@ -80,6 +80,10 @@ default:
 							Whitespace{Value: "\t"},
 							Element{
 								Name: "span",
+								NameRange: Range{
+									From: Position{Index: 30, Line: 2, Col: 2},
+									To:   Position{Index: 34, Line: 2, Col: 6},
+								},
 								Children: []Node{
 									Whitespace{Value: "\n\t  "},
 									StringExpression{
@@ -98,11 +102,12 @@ default:
 												},
 											},
 										},
+										TrailingSpace: SpaceVertical,
 									},
-									Whitespace{Value: "\n\t"},
 								},
+								IndentChildren: true,
+								TrailingSpace:  SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
 					},
 				},
@@ -152,6 +157,10 @@ default:
 						Children: []Node{
 							Element{
 								Name: "span",
+								NameRange: Range{
+									From: Position{Index: 37, Line: 2, Col: 1},
+									To:   Position{Index: 41, Line: 2, Col: 5},
+								},
 								Children: []Node{
 									Whitespace{Value: "\n  "},
 									StringExpression{
@@ -170,11 +179,12 @@ default:
 												},
 											},
 										},
+										TrailingSpace: SpaceVertical,
 									},
-									Whitespace{Value: "\n"},
 								},
+								IndentChildren: true,
+								TrailingSpace:  SpaceVertical,
 							},
-							Whitespace{Value: "\n"},
 						},
 					},
 				},
@@ -241,6 +251,7 @@ default:
 										},
 									},
 								},
+								TrailingSpace: SpaceVertical,
 							},
 						},
 					},
@@ -280,9 +291,7 @@ default:
 										},
 									},
 								},
-							},
-							Whitespace{
-								Value: "\n",
+								TrailingSpace: SpaceVertical,
 							},
 						},
 					},
@@ -307,4 +316,24 @@ default:
 			}
 		})
 	}
+}
+
+func TestIncompleteSwitch(t *testing.T) {
+	t.Run("no opening brace", func(t *testing.T) {
+		input := parse.NewInput(`switch with no brace`)
+		_, _, err := switchExpression.Parse(input)
+		if err.Error() != "switch: unterminated (missing closing '{\\n') - https://templ.guide/syntax-and-usage/statements#incomplete-statements: line 0, col 0" {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("capitalised Switch", func(t *testing.T) {
+		input := parse.NewInput(`Switch with no brace`)
+		_, ok, err := switchExpression.Parse(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok {
+			t.Fatal("expected a non match")
+		}
+	})
 }

@@ -32,7 +32,7 @@ graph LR
   * Does not contain application logic itself
   * Uses `services` that carry out application logic
   * Takes the responses from `services` and uses `components` to render HTML
-  * Creates HTTP repsonses
+  * Creates HTTP responses
 * Services
   * Carries out application logic such as orchestrating API calls, or making database calls
   * Does not do anything related to HTML or HTTP
@@ -53,9 +53,9 @@ Layering an application in this way can simplify code structure, since the respo
 
 To ensure that each part of the application is initialized with its dependencies, each struct defines a constructor (the `New` function in this example).
 
-As per https://github.com/golang/go/wiki/CodeReviewComments#interfaces the HTTP handler defines the interface that it's expecting, rather than the service defining its own interface.
+As per https://go.dev/wiki/CodeReviewComments#interfaces the HTTP handler defines the interface that it's expecting, rather than the service defining its own interface.
 
-```go title="services/count.go"
+```go title="handlers/default.go"
 type CountService interface {
 	Increment(ctx context.Context, it services.IncrementType, sessionID string) (counts services.Counts, err error)
 	Get(ctx context.Context, sessionID string) (counts services.Counts, err error)
@@ -74,7 +74,7 @@ type DefaultHandler struct {
 }
 ```
 
-Changing the signature of `New` to add a new dependency will result in a compilation error that shows you all affected code in your application.
+Changing the signature of `New` to add a new dependency will result in a compilation error that shows you all the affected code in your application.
 
 :::tip
 Dependency injection frameworks are not typically used in Go. If you're coming from a language like C# or Java, this may seem unusual to you, but go with it, you don't need one.
@@ -226,7 +226,7 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout))
+	log := slog.New(slog.NewJSONHandler(os.Stderr))
 	s, err := db.NewCountStore(os.Getenv("TABLE_NAME"), os.Getenv("AWS_REGION"))
 	if err != nil {
 		log.Error("failed to create store", slog.Any("error", err))
@@ -235,7 +235,7 @@ func main() {
 	cs := services.NewCount(log, s)
 	h := handlers.New(log, cs)
 
-	var secureFlag bool
+	var secureFlag = true
 	if os.Getenv("SECURE_FLAG") == "false" {
 		secureFlag = false
 	}

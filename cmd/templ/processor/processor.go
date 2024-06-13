@@ -42,7 +42,10 @@ func shouldSkipDir(dir string) bool {
 }
 
 func FindTemplates(srcPath string, output chan<- string) (err error) {
-	return filepath.Walk(srcPath, func(currentPath string, info fs.FileInfo, err error) error {
+	return filepath.WalkDir(srcPath, func(currentPath string, info fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		if info.IsDir() && shouldSkipDir(currentPath) {
 			return filepath.SkipDir
 		}

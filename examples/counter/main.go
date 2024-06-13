@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout))
+	log := slog.New(slog.NewJSONHandler(os.Stderr))
 	s, err := db.NewCountStore(os.Getenv("TABLE_NAME"), os.Getenv("AWS_REGION"))
 	if err != nil {
 		log.Error("failed to create store", slog.Any("error", err))
@@ -23,7 +23,7 @@ func main() {
 	cs := services.NewCount(log, s)
 	h := handlers.New(log, cs)
 
-	var secureFlag bool
+	var secureFlag = true
 	if os.Getenv("SECURE_FLAG") == "false" {
 		secureFlag = false
 	}

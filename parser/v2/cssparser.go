@@ -1,9 +1,6 @@
 package parser
 
 import (
-	"strings"
-	"unicode"
-
 	"github.com/a-h/parse"
 )
 
@@ -21,6 +18,7 @@ var cssParser = parse.Func(func(pi *parse.Input) (r CSSTemplate, ok bool, err er
 		return
 	}
 	r.Name = exp.Name
+	r.Expression = exp.Expression
 
 	for {
 		var cssProperty CSSProperty
@@ -53,7 +51,8 @@ var cssParser = parse.Func(func(pi *parse.Input) (r CSSTemplate, ok bool, err er
 		}
 
 		// Try for }
-		if _, ok, err = Must(closeBraceWithOptionalPadding, "css property expression: missing closing brace").Parse(pi); err != nil || !ok {
+		if _, ok, err = closeBraceWithOptionalPadding.Parse(pi); err != nil || !ok {
+			err = parse.Error("css property expression: missing closing brace", pi.Position())
 			return
 		}
 
@@ -63,62 +62,29 @@ var cssParser = parse.Func(func(pi *parse.Input) (r CSSTemplate, ok bool, err er
 
 // css Func() {
 type cssExpression struct {
-	Name Expression
+	Expression Expression
+	Name       string
 }
 
-var cssExpressionStartParser = parse.String("css ")
-
-var cssExpressionNameParser = parse.Func(func(in *parse.Input) (name string, ok bool, err error) {
-	var c string
-	if c, ok = in.Peek(1); !ok || !unicode.IsLetter(rune(c[0])) {
-		return
-	}
-	prefix, _, _ := parse.Letter.Parse(in)
-	suffix, _, _ := parse.AtMost(1000, parse.Any(parse.Letter, parse.ZeroToNine)).Parse(in)
-	return prefix + strings.Join(suffix, ""), true, nil
-})
-
 var cssExpressionParser = parse.Func(func(pi *parse.Input) (r cssExpression, ok bool, err error) {
-	// Check the prefix first.
-	if _, ok, err = cssExpressionStartParser.Parse(pi); err != nil || !ok {
-		return
+	start := pi.Index()
+
+	if !peekPrefix(pi, "css ") {
+		return r, false, nil
 	}
 
-	// Once we have the prefix, we must have a name and parameters.
-	// Read the name of the function.
-	from := pi.Position()
-	// If there's no match, the name wasn't correctly terminated.
-	var name string
-	if name, ok, err = Must(cssExpressionNameParser, "css expression: invalid name").Parse(pi); err != nil || !ok {
-		return
-	}
-	r.Name = NewExpression(name, from, pi.Position())
-
-	// Eat the open bracket.
-	if _, ok, err = Must(parse.Rune('('), "css expression: parameters missing open bracket").Parse(pi); err != nil || !ok {
-		return
+	// Once we have the prefix, everything to the brace is Go.
+	// e.g.
+	// css (x []string) Test() {
+	// becomes:
+	// func (x []string) Test() templ.CSSComponent {
+	if r.Name, r.Expression, err = parseCSSFuncDecl(pi); err != nil {
+		return r, false, err
 	}
 
-	// Check there's no parameters.
-	from = pi.Position()
-	if _, ok, err = parse.StringUntil(parse.Rune(')')).Parse(pi); err != nil {
-		return
-	}
-	// If there's no match, the name wasn't correctly terminated.
-	if !ok {
-		return r, ok, parse.Error("css expression: parameters missing close bracket", pi.Position())
-	}
-	if pi.Index()-int(from.Index) > 0 {
-		return r, ok, parse.Error("css expression: found unexpected parameters", pi.Position())
-	}
-
-	// Eat ") {".
-	if _, ok, err = Must(expressionFuncEnd, "css expression: unterminated (missing ') {')").Parse(pi); err != nil || !ok {
-		return
-	}
-
-	// Expect a newline.
-	if _, ok, err = Must(parse.NewLine, "css expression: missing terminating newline").Parse(pi); err != nil || !ok {
+	// Eat " {\n".
+	if _, ok, err = parse.All(openBraceWithOptionalPadding, parse.NewLine).Parse(pi); err != nil || !ok {
+		err = parse.Error("css expression: parameters missing open bracket", pi.PositionAt(start))
 		return
 	}
 
@@ -166,17 +132,21 @@ var expressionCSSPropertyParser = parse.Func(func(pi *parse.Input) (r Expression
 	}
 
 	// { string }
-	if r.Value, ok, err = stringExpression.Parse(pi); err != nil || !ok {
+	var se Node
+	if se, ok, err = stringExpression.Parse(pi); err != nil || !ok {
 		pi.Seek(start)
 		return
 	}
+	r.Value = se.(StringExpression)
 
 	// ;
-	if _, ok, err = Must(parse.String(";"), "missing expected semicolon (;)").Parse(pi); err != nil || !ok {
+	if _, ok, err = parse.String(";").Parse(pi); err != nil || !ok {
+		err = parse.Error("missing expected semicolon (;)", pi.Position())
 		return
 	}
 	// \n
-	if _, ok, err = Must(parse.NewLine, "missing expected linebreak").Parse(pi); err != nil || !ok {
+	if _, ok, err = parse.NewLine.Parse(pi); err != nil || !ok {
+		err = parse.Error("missing expected linebreak", pi.Position())
 		return
 	}
 
@@ -208,12 +178,14 @@ var constantCSSPropertyParser = parse.Func(func(pi *parse.Input) (r ConstantCSSP
 		parse.Rune(';'),
 		parse.NewLine,
 	)
-	if r.Value, ok, err = Must(parse.StringUntil(untilEnd), "missing expected semicolon and linebreak (;\\n").Parse(pi); err != nil || !ok {
+	if r.Value, ok, err = parse.StringUntil(untilEnd).Parse(pi); err != nil || !ok {
+		err = parse.Error("missing expected semicolon and linebreak (;\\n", pi.Position())
 		return
 	}
 
 	// Chomp the ;\n
-	if _, ok, err = Must(untilEnd, "failed to chomp semicolon and linebreak (;\\n)").Parse(pi); err != nil || !ok {
+	if _, ok, err = untilEnd.Parse(pi); err != nil || !ok {
+		err = parse.Error("failed to chomp semicolon and linebreak (;\\n)", pi.Position())
 		return
 	}
 
